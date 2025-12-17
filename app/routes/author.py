@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from .. import model, schema, database # 2 point pour remonter au fichier parent
+from app import crud, schema, database # Import de crud
 
 router = APIRouter(prefix="/authors", tags=["Authors"])
 
-# Fonction pour récupérer la session de base de données
+# Dépendance pour injecter la session de base de données dans les fonctions
 def get_db():
     db = database.SessionLocal()
     try:
@@ -14,23 +14,15 @@ def get_db():
 
 @router.post("/", response_model=schema.Author)
 def create_author(author: schema.AuthorCreate, db: Session = Depends(get_db)):
-    # Vérification de la contrainte métier : le nom complet doit être unique 
-    db_author = db.query(model.Author).filter(
-        model.Author.firstname == author.firstname,
-        model.Author.lastname == author.lastname
-    ).first()
-    
+    # Utilisation du CRUD pour vérifier l'existence
+    db_author = crud.get_author_by_name(db, author.firstname, author.lastname)
     if db_author:
         raise HTTPException(status_code=400, detail="Cet auteur existe déjà")
     
-    # Création de l'auteur selon les attributs requis 
-    new_author = model.Author(**author.model_dump())
-    db.add(new_author)
-    db.commit()
-    db.refresh(new_author)
-    return new_author
+    # Utilisation du CRUD pour la création
+    return crud.create_author(db=db, author=author)
 
 @router.get("/", response_model=list[schema.Author])
 def list_authors(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
-    # Récupération de la liste complète avec pagination 
-    return db.query(model.Author).offset(skip).limit(limit).all()
+    # Utilisation du CRUD pour le listing
+    return crud.get_authors(db, skip=skip, limit=limit)
