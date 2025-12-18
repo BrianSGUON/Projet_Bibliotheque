@@ -6,6 +6,7 @@ from app import schema
 from app.model.model import Loan, LoanStatus
 from app.core.database import get_db
 from app.service import service
+from datetime import datetime, date
 
 router = APIRouter(prefix="/loans", tags=["Loans"])
 
@@ -24,7 +25,7 @@ def create_new_loan(loan: schema.LoanCreate, db: Session = Depends(get_db)):
 @router.patch("/{loan_id}/return", response_model=schema.LoanRead)
 def return_book(loan_id: int, db: Session = Depends(get_db)):
     """
-    Marquer un livre comme retourné (Mise à jour partielle via PATCH).
+    Marquer un livre comme retourné .
     Le service va gérer la date de retour, le statut et la remise en stock (+1).
     """
     return service.process_return(db=db, loan_id=loan_id)
@@ -46,3 +47,14 @@ def list_late_loans(db: Session = Depends(get_db)):
     statement = select(Loan).where(Loan.status == LoanStatus.RETARD)
     results = db.exec(statement).all()
     return results
+
+@router.patch("/{loan_id}/force-overdue")
+def force_overdue(loan_id: int, db: Session = Depends(get_db)):
+    loan = db.get(Loan, loan_id)
+    if not loan:
+        raise HTTPException(status_code=404, detail="Emprunt non trouvé")
+    # On force une date passée
+    loan.return_deadline = datetime(2024, 1, 1)
+    db.add(loan)
+    db.commit()
+    return {"message": "L'emprunt est maintenant officiellement en retard !"}

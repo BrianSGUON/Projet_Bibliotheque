@@ -3,7 +3,7 @@ from datetime import date, datetime
 from typing import Optional, List
 from enum import Enum
 
-# --- ÉNUMÉRATIONS (Redéfinies ici pour éviter l'import circulaire avec model.py) ---
+# --- ÉNUMÉRATIONS ---
 
 class BookCategory(str, Enum):
     FICTION = "Fiction"

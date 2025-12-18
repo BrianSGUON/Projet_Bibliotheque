@@ -21,7 +21,7 @@ app = FastAPI(
 def on_startup():
     create_db_and_tables()
 
-# Montage des routeurs avec imports absolus
+# Montage des routeurs 
 app.include_router(author.router)
 app.include_router(book.router)
 app.include_router(loan.router)
