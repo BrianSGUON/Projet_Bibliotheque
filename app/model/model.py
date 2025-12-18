@@ -1,60 +1,69 @@
-from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, Enum, Text, UniqueConstraint
-from sqlalchemy.orm import relationship
-import enum
-from .database import Base
+from enum import Enum
+from typing import Optional, List
+from datetime import date, datetime
+from sqlmodel import Field, Relationship, SQLModel
 
-class CategoryEnum(enum.Enum):
-    Fiction = "Fiction"
-    Science = "Science"
-    Histoire = "Histoire"
-    Philosophie = "Philosophie"
-    Autre = "Autre"
+# --- ÉNUMÉRATIONS ---
 
-class LoanStatus(enum.Enum):
+class BookCategory(str, Enum):
+    FICTION = "Fiction"
+    SCIENCE = "Science"
+    HISTOIRE = "Histoire"
+    PHILOSOPHIE = "Philosophie"
+    BIOGRAPHIE = "Biographie"
+    POESIE = "Poésie"
+    THEATRE = "Théâtre"
+    JEUNESSE = "Jeunesse"
+    BD = "BD"
+    AUTRE = "Autre"
+
+class LoanStatus(str, Enum):
     ACTIF = "actif"
     RETOURNE = "retourné"
     RETARD = "en retard"
 
-class Author(Base):
+# --- MODÈLES AUTEUR ---
+
+class Author(SQLModel, table=True):
     __tablename__ = "authors"
-    id = Column(Integer, primary_key=True, index=True)
-    firstname = Column(String, nullable=False)
-    lastname = Column(String, nullable=False)
-    birth_date = Column(Date, nullable=False)
-    nationality = Column(String(3), nullable=False)
-    biography = Column(Text, nullable=True)
-    death_date = Column(Date, nullable=True)
-    website = Column(String, nullable=True)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    firstname: str = Field(nullable=False)
+    lastname: str = Field(nullable=False)
+    birth_date: date = Field(nullable=False)
+    nationality: str = Field(max_length=3)
+    
+    books: List["Book"] = Relationship(back_populates="author")
 
-    __table_args__ = (UniqueConstraint('firstname', 'lastname', name='_author_full_name_uc'),)
-    books = relationship("Book", back_populates="author")
+# --- MODÈLES LIVRE ---
 
-class Book(Base):
+class Book(SQLModel, table=True):
     __tablename__ = "books"
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)
-    isbn = Column(String(13), unique=True, index=True, nullable=False)
-    publication_year = Column(Integer, nullable=False)
-    author_id = Column(Integer, ForeignKey("authors.id"), nullable=False)
-    available_copies = Column(Integer, default=1)
-    total_copies = Column(Integer, nullable=False)
-    category = Column(Enum(CategoryEnum), nullable=False)
-    language = Column(String, nullable=False)
-    pages = Column(Integer, nullable=False)
-    publisher = Column(String, nullable=False)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title: str = Field(index=True)
+    isbn: str = Field(unique=True, index=True, max_length=17) 
+    publication_year: int
+    author_id: int = Field(foreign_key="authors.id", index=True)
+    available_copies: int = Field(default=0, ge=0)
+    total_copies: int = Field(gt=0)
+    category: BookCategory = Field(default=BookCategory.AUTRE)
+    language: str = Field(max_length=2)
+    pages: int = Field(gt=0)
+    publisher: str
 
-    author = relationship("Author", back_populates="books")
-    loans = relationship("Loan", back_populates="book")
+    author: Author = Relationship(back_populates="books")
+    loans: List["Loan"] = Relationship(back_populates="book")
 
-class Loan(Base):
+# --- MODÈLES LOAN ---
+
+class Loan(SQLModel, table=True):
     __tablename__ = "loans"
-    id = Column(Integer, primary_key=True, index=True)
-    book_id = Column(Integer, ForeignKey("books.id"), nullable=False)
-    borrower_name = Column(String, nullable=False)
-    borrower_email = Column(String, nullable=False)
-    loan_date = Column(DateTime, nullable=False)
-    return_deadline = Column(DateTime, nullable=False)
-    actual_return_date = Column(DateTime, nullable=True)
-    status = Column(Enum(LoanStatus), default=LoanStatus.ACTIF)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    book_id: int = Field(foreign_key="books.id")
+    borrower_name: str
+    borrower_email: str
+    loan_date: datetime = Field(default_factory=datetime.now)
+    return_deadline: datetime
+    actual_return_date: Optional[datetime] = Field(default=None)
+    status: LoanStatus = Field(default=LoanStatus.ACTIF)
 
-    book = relationship("Book", back_populates="loans")
+    book: Book = Relationship(back_populates="loans")
